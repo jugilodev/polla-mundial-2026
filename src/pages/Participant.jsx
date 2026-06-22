@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getPredictionsByParticipant } from "../services/predictions.service";
 import { getParticipants } from "../services/participants.service";
+import { getKnockoutPredictions } from "../services/knockout.service";
+import Bracket from "../components/Bracket";
 
 export default function Participant() {
     const { id } = useParams();
@@ -9,6 +11,7 @@ export default function Participant() {
 
     const [participants, setParticipants] = useState([]);
     const [predictions, setPredictions] = useState([]);
+    const [knockout, setKnockout] = useState([]);
     const [status, setStatus] = useState("loading"); // loading | ready | error
 
     // Lista de participantes (para el selector). Se carga una sola vez.
@@ -33,9 +36,13 @@ export default function Participant() {
         (async () => {
             setStatus("loading");
             try {
-                const data = await getPredictionsByParticipant(id);
+                const [groupData, knockoutData] = await Promise.all([
+                    getPredictionsByParticipant(id),
+                    getKnockoutPredictions(id),
+                ]);
                 if (active) {
-                    setPredictions(data);
+                    setPredictions(groupData);
+                    setKnockout(knockoutData);
                     setStatus("ready");
                 }
             } catch (err) {
@@ -132,34 +139,52 @@ export default function Participant() {
                 </div>
             )}
 
-            {status === "ready" && predictions.length === 0 && (
-                <div className="state">Este participante aún no tiene predicciones.</div>
-            )}
+            {status === "ready" &&
+                predictions.length === 0 &&
+                knockout.length === 0 && (
+                    <div className="state">
+                        Este participante aún no tiene predicciones.
+                    </div>
+                )}
 
             {status === "ready" && groups.length > 0 && (
-                <div className="groups">
-                    {groups.map(([letter, teams]) => (
-                        <div className="group-card" key={letter}>
-                            <h3>Grupo {letter}</h3>
-                            {teams.map((p) => (
-                                <div
-                                    key={p.id}
-                                    className={`team-row ${
-                                        p.predicted_position <= 2 ? "qualifies" : ""
-                                    }`}
-                                >
-                                    <span className="seed">{p.predicted_position}</span>
-                                    <span className="team-name">{p.teams?.name}</span>
-                                    {p.predicted_best_third && (
-                                        <span className="star" title="Mejor tercero">
-                                            ⭐
+                <>
+                    <h2 className="section-title">Fase de grupos</h2>
+                    <div className="groups">
+                        {groups.map(([letter, teams]) => (
+                            <div className="group-card" key={letter}>
+                                <h3>Grupo {letter}</h3>
+                                {teams.map((p) => (
+                                    <div
+                                        key={p.id}
+                                        className={`team-row ${
+                                            p.predicted_position <= 2 ? "qualifies" : ""
+                                        }`}
+                                    >
+                                        <span className="seed">
+                                            {p.predicted_position}
                                         </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
+                                        <span className="team-name">
+                                            {p.teams?.name}
+                                        </span>
+                                        {p.predicted_best_third && (
+                                            <span className="star" title="Mejor tercero">
+                                                ⭐
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
+
+            {status === "ready" && knockout.length > 0 && (
+                <>
+                    <h2 className="section-title">Fase eliminatoria</h2>
+                    <Bracket matches={knockout} />
+                </>
             )}
         </div>
     );

@@ -344,6 +344,150 @@
   color: var(--gold);
 }
 
+/* ===== Bracket / fase eliminatoria ===== */
+.bracket-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Banner del campeón */
+.champion {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 211, 61, 0.4);
+  background: linear-gradient(135deg, rgba(255, 211, 61, 0.16), var(--surface) 70%);
+  box-shadow: var(--shadow);
+}
+
+.champion-trophy {
+  font-size: 38px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(255, 211, 61, 0.35));
+}
+
+.champion-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.champion-label {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.champion-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-h);
+}
+
+/* Scroll horizontal para pantallas chicas */
+.bracket-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.bracket {
+  display: flex;
+  gap: 22px;
+  min-width: max-content;
+  align-items: stretch;
+}
+
+.round {
+  display: flex;
+  flex-direction: column;
+  min-width: 156px;
+}
+
+.round-label {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-dim);
+  padding: 6px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* La clave del bracket: space-around reparte los partidos para que
+   cada ronda quede alineada entre sus dos partidos "alimentadores". */
+.round-matches {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.bmatch {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.bteam {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.bteam + .bteam {
+  border-top: 1px solid var(--border-soft);
+}
+
+.bteam-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bteam.won {
+  background: var(--green-soft);
+}
+
+.bteam.won .bteam-name {
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.bteam.lost .bteam-name {
+  color: var(--text-dim);
+}
+
+.bteam-check {
+  color: var(--green);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Tercer lugar */
+.third-place {
+  align-self: flex-start;
+  max-width: 240px;
+}
+
+.third-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--podium-3);
+  margin-bottom: 8px;
+}
+
 /* ===== Estados (carga / error / vacío) ===== */
 .state {
   text-align: center;
