@@ -1,28 +1,52 @@
 import { useMemo } from "react";
+import { flagFor } from "../lib/flags";
 
 const STAGES = [
-    { key: "ROUND_OF_32", label: "Dieciseisavos" },
-    { key: "ROUND_OF_16", label: "Octavos" },
-    { key: "QUARTERFINALS", label: "Cuartos" },
-    { key: "SEMIFINALS", label: "Semis" },
-    { key: "FINAL", label: "Final" },
+    { key: "ROUND_OF_32", label: "Dieciseisavos", short: "16avos" },
+    { key: "ROUND_OF_16", label: "Octavos", short: "8avos" },
+    { key: "QUARTERFINALS", label: "Cuartos", short: "4tos" },
+    { key: "SEMIFINALS", label: "Semifinales", short: "Semis" },
+    { key: "FINAL", label: "Final", short: "Final" },
 ];
 
-function TeamLine({ team, won }) {
+// Iniciales para el "escudo" del equipo (2 letras a partir del nombre).
+function initials(name) {
+    if (!name) return "—";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function TeamLine({ team, won, decided }) {
+    const state = !decided ? "pending" : won ? "won" : "lost";
+    const flag = flagFor(team?.name);
     return (
-        <div className={`bteam ${won ? "won" : "lost"}`}>
+        <div className={`bteam ${state}`}>
+            <span className={`bteam-badge ${flag ? "is-flag" : ""}`} aria-hidden="true">
+                {flag ?? initials(team?.name)}
+            </span>
             <span className="bteam-name">{team?.name ?? "—"}</span>
-            {won && <span className="bteam-check">✓</span>}
+            {won && <span className="bteam-check" aria-label="Avanza">✓</span>}
         </div>
     );
 }
 
 function MatchCard({ match }) {
     const winnerId = match.winner?.id;
+    const decided = Boolean(winnerId);
     return (
-        <div className="bmatch">
-            <TeamLine team={match.team1} won={match.team1?.id === winnerId} />
-            <TeamLine team={match.team2} won={match.team2?.id === winnerId} />
+        <div className={`bmatch ${decided ? "decided" : ""}`}>
+            <TeamLine
+                team={match.team1}
+                won={match.team1?.id === winnerId}
+                decided={decided}
+            />
+            <div className="bmatch-vs">vs</div>
+            <TeamLine
+                team={match.team2}
+                won={match.team2?.id === winnerId}
+                decided={decided}
+            />
         </div>
     );
 }
@@ -58,33 +82,32 @@ export default function Bracket({ matches }) {
                         const stageMatches = byStage[stage.key] ?? [];
                         if (stageMatches.length === 0) return null;
                         return (
-                            <div className="round" key={stage.key}>
-                                <div className="round-label">{stage.label}</div>
+                            <section className="round" key={stage.key}>
+                                <header className="round-label">
+                                    <span className="round-label-text">{stage.label}</span>
+                                    <span className="round-label-count">
+                                        {stageMatches.length}
+                                        {stageMatches.length === 1 ? " partido" : " partidos"}
+                                    </span>
+                                </header>
                                 <div className="round-matches">
                                     {stageMatches.map((m) => (
                                         <MatchCard key={m.id} match={m} />
                                     ))}
                                 </div>
-                            </div>
+                            </section>
                         );
                     })}
                 </div>
             </div>
 
             {third && (
-                <div className="third-place">
-                    <span className="third-badge">🥉 Tercer lugar</span>
-                    <div className="bmatch">
-                        <TeamLine
-                            team={third.team1}
-                            won={third.team1?.id === third.winner?.id}
-                        />
-                        <TeamLine
-                            team={third.team2}
-                            won={third.team2?.id === third.winner?.id}
-                        />
-                    </div>
-                </div>
+                <section className="third-place">
+                    <header className="round-label">
+                        <span className="round-label-text">🥉 Tercer lugar</span>
+                    </header>
+                    <MatchCard match={third} />
+                </section>
             )}
         </div>
     );

@@ -4,6 +4,7 @@ import { getPredictionsByParticipant } from "../services/predictions.service";
 import { getParticipants } from "../services/participants.service";
 import { getKnockoutPredictions } from "../services/knockout.service";
 import Bracket from "../components/Bracket";
+import { flagFor } from "../lib/flags";
 
 export default function Participant() {
     const { id } = useParams();
@@ -13,6 +14,7 @@ export default function Participant() {
     const [predictions, setPredictions] = useState([]);
     const [knockout, setKnockout] = useState([]);
     const [status, setStatus] = useState("loading"); // loading | ready | error
+    const [view, setView] = useState("groups"); // groups | bracket
 
     // Lista de participantes (para el selector). Se carga una sola vez.
     useEffect(() => {
@@ -147,45 +149,87 @@ export default function Participant() {
                     </div>
                 )}
 
-            {status === "ready" && groups.length > 0 && (
-                <>
-                    <h2 className="section-title">Fase de grupos</h2>
-                    <div className="groups">
-                        {groups.map(([letter, teams]) => (
-                            <div className="group-card" key={letter}>
-                                <h3>Grupo {letter}</h3>
-                                {teams.map((p) => (
-                                    <div
-                                        key={p.id}
-                                        className={`team-row ${
-                                            p.predicted_position <= 2 ? "qualifies" : ""
-                                        }`}
-                                    >
-                                        <span className="seed">
-                                            {p.predicted_position}
-                                        </span>
-                                        <span className="team-name">
-                                            {p.teams?.name}
-                                        </span>
-                                        {p.predicted_best_third && (
-                                            <span className="star" title="Mejor tercero">
-                                                ⭐
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </>
-            )}
+            {status === "ready" &&
+                (groups.length > 0 || knockout.length > 0) && (
+                    <>
+                        {/* Filtro: alterna entre fase de grupos y brackets */}
+                        <div className="view-tabs" role="tablist" aria-label="Tipo de predicción">
+                            <button
+                                role="tab"
+                                aria-selected={view === "groups"}
+                                className={`view-tab ${view === "groups" ? "active" : ""}`}
+                                onClick={() => setView("groups")}
+                            >
+                                Fase de grupos
+                            </button>
+                            <button
+                                role="tab"
+                                aria-selected={view === "bracket"}
+                                className={`view-tab ${view === "bracket" ? "active" : ""}`}
+                                onClick={() => setView("bracket")}
+                            >
+                                Brackets
+                            </button>
+                        </div>
 
-            {status === "ready" && knockout.length > 0 && (
-                <>
-                    <h2 className="section-title">Fase eliminatoria</h2>
-                    <Bracket matches={knockout} />
-                </>
-            )}
+                        {view === "groups" &&
+                            (groups.length > 0 ? (
+                                <div className="groups">
+                                    {groups.map(([letter, teams]) => (
+                                        <div className="group-card" key={letter}>
+                                            <h3>Grupo {letter}</h3>
+                                            {teams.map((p) => (
+                                                <div
+                                                    key={p.id}
+                                                    className={`team-row ${
+                                                        p.predicted_position <= 2
+                                                            ? "qualifies"
+                                                            : ""
+                                                    }`}
+                                                >
+                                                    <span className="seed">
+                                                        {p.predicted_position}
+                                                    </span>
+                                                    {flagFor(p.teams?.name) && (
+                                                        <span
+                                                            className="team-flag"
+                                                            aria-hidden="true"
+                                                        >
+                                                            {flagFor(p.teams?.name)}
+                                                        </span>
+                                                    )}
+                                                    <span className="team-name">
+                                                        {p.teams?.name}
+                                                    </span>
+                                                    {p.predicted_best_third && (
+                                                        <span
+                                                            className="star"
+                                                            title="Mejor tercero"
+                                                        >
+                                                            ⭐
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="state">
+                                    Sin predicciones de fase de grupos.
+                                </div>
+                            ))}
+
+                        {view === "bracket" &&
+                            (knockout.length > 0 ? (
+                                <Bracket matches={knockout} />
+                            ) : (
+                                <div className="state">
+                                    Sin predicciones de fase eliminatoria.
+                                </div>
+                            ))}
+                    </>
+                )}
         </div>
     );
 }
