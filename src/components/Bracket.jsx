@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { flagFor } from "../lib/flags";
 
 const STAGES = [
@@ -52,6 +52,8 @@ function MatchCard({ match }) {
 }
 
 export default function Bracket({ matches }) {
+    const [stageFilter, setStageFilter] = useState("ALL");
+
     const byStage = useMemo(() => {
         const map = {};
         for (const m of matches) {
@@ -63,6 +65,14 @@ export default function Bracket({ matches }) {
     const final = byStage.FINAL?.[0];
     const champion = final?.winner;
     const third = byStage.THIRD_PLACE?.[0];
+
+    // Instancias disponibles para los chips de filtro (solo las que tienen partidos).
+    const availableStages = useMemo(
+        () => STAGES.filter((s) => (byStage[s.key]?.length ?? 0) > 0),
+        [byStage]
+    );
+
+    const showRound = (key) => stageFilter === "ALL" || stageFilter === key;
 
     return (
         <div className="bracket-wrap">
@@ -76,11 +86,49 @@ export default function Bracket({ matches }) {
                 </div>
             )}
 
+            {/* Filtro de instancia: dieciseisavos, octavos, cuartos… */}
+            {availableStages.length > 1 && (
+                <div className="stage-chips" role="tablist" aria-label="Instancia">
+                    <button
+                        role="tab"
+                        aria-selected={stageFilter === "ALL"}
+                        className={`stage-chip ${stageFilter === "ALL" ? "active" : ""}`}
+                        onClick={() => setStageFilter("ALL")}
+                    >
+                        Todos
+                    </button>
+                    {availableStages.map((s) => (
+                        <button
+                            key={s.key}
+                            role="tab"
+                            aria-selected={stageFilter === s.key}
+                            className={`stage-chip ${stageFilter === s.key ? "active" : ""}`}
+                            onClick={() => setStageFilter(s.key)}
+                        >
+                            {s.short}
+                        </button>
+                    ))}
+                    {third && (
+                        <button
+                            role="tab"
+                            aria-selected={stageFilter === "THIRD_PLACE"}
+                            className={`stage-chip ${
+                                stageFilter === "THIRD_PLACE" ? "active" : ""
+                            }`}
+                            onClick={() => setStageFilter("THIRD_PLACE")}
+                        >
+                            🥉 3.º
+                        </button>
+                    )}
+                </div>
+            )}
+
             <div className="bracket-scroll">
                 <div className="bracket">
                     {STAGES.map((stage) => {
                         const stageMatches = byStage[stage.key] ?? [];
-                        if (stageMatches.length === 0) return null;
+                        if (stageMatches.length === 0 || !showRound(stage.key))
+                            return null;
                         return (
                             <section className="round" key={stage.key}>
                                 <header className="round-label">
@@ -101,7 +149,7 @@ export default function Bracket({ matches }) {
                 </div>
             </div>
 
-            {third && (
+            {third && showRound("THIRD_PLACE") && (
                 <section className="third-place">
                     <header className="round-label">
                         <span className="round-label-text">🥉 Tercer lugar</span>

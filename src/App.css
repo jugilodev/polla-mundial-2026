@@ -434,6 +434,46 @@
   text-overflow: ellipsis;
 }
 
+/* Chips para filtrar por instancia (16avos, 8avos, …) */
+.stage-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.stage-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.stage-chip {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.stage-chip:hover:not(.active) {
+  color: var(--text-h);
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.stage-chip.active {
+  background: var(--green-soft);
+  border-color: var(--green);
+  color: var(--green);
+}
+
 .bracket-scroll {
   /* En móvil no hay scroll horizontal; se reactiva en el árbol de desktop. */
   overflow-x: visible;
