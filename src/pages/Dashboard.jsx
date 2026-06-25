@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getRanking } from "../services/scores.service";
+import PointsInfo from "../components/PointsInfo";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -39,6 +40,8 @@ export default function Dashboard() {
                 <h1>🏆 Mundial 2026</h1>
                 <p>Clasificación general de todos los participantes</p>
             </header>
+
+            <PointsInfo />
 
             {status === "loading" && (
                 <div className="state">
