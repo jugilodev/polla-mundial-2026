@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { getPredictionsByParticipant } from "../services/predictions.service";
 import { getParticipants } from "../services/participants.service";
 import { getKnockoutPredictions } from "../services/knockout.service";
+import { getGroupResults } from "../services/results.service";
 import Bracket from "../components/Bracket";
 import { flagFor } from "../lib/flags";
 
@@ -13,16 +14,24 @@ export default function Participant() {
     const [participants, setParticipants] = useState([]);
     const [predictions, setPredictions] = useState([]);
     const [knockout, setKnockout] = useState([]);
+    const [results, setResults] = useState([]);
     const [status, setStatus] = useState("loading"); // loading | ready | error
     const [view, setView] = useState("groups"); // groups | bracket
 
-    // Lista de participantes (para el selector). Se carga una sola vez.
+    // Datos que no dependen del participante (selector + resultados reales).
+    // Se cargan una sola vez.
     useEffect(() => {
         let active = true;
         (async () => {
             try {
-                const data = await getParticipants();
-                if (active) setParticipants(data);
+                const [parts, res] = await Promise.all([
+                    getParticipants(),
+                    getGroupResults(),
+                ]);
+                if (active) {
+                    setParticipants(parts);
+                    setResults(res);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -80,6 +89,28 @@ export default function Participant() {
         }
         return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
     }, [predictions]);
+
+    // Mapa team_id -> resultado real (posición final en su grupo).
+    const resultsById = useMemo(() => {
+        const map = new Map();
+        for (const r of results) map.set(r.team_id, r);
+        return map;
+    }, [results]);
+
+    // Resumen de aciertos de fase de grupos: por cada posición exacta, +1 punto.
+    const groupSummary = useMemo(() => {
+        let hits = 0;
+        let decided = 0; // predicciones cuyo equipo ya tiene resultado real
+        for (const p of predictions) {
+            const real = resultsById.get(p.teams?.id);
+            if (!real) continue;
+            decided += 1;
+            if (real.final_position === p.predicted_position) hits += 1;
+        }
+        return { hits, decided, points: hits };
+    }, [predictions, resultsById]);
+
+    const hasResults = resultsById.size > 0;
 
     return (
         <div>
@@ -174,46 +205,125 @@ export default function Participant() {
 
                         {view === "groups" &&
                             (groups.length > 0 ? (
-                                <div className="groups">
-                                    {groups.map(([letter, teams]) => (
-                                        <div className="group-card" key={letter}>
-                                            <h3>Grupo {letter}</h3>
-                                            {teams.map((p) => (
-                                                <div
-                                                    key={p.id}
-                                                    className={`team-row ${
-                                                        p.predicted_position <= 2
-                                                            ? "qualifies"
-                                                            : ""
-                                                    }`}
-                                                >
-                                                    <span className="seed">
-                                                        {p.predicted_position}
-                                                    </span>
-                                                    {flagFor(p.teams?.name) && (
-                                                        <span
-                                                            className="team-flag"
-                                                            aria-hidden="true"
-                                                        >
-                                                            {flagFor(p.teams?.name)}
-                                                        </span>
-                                                    )}
-                                                    <span className="team-name">
-                                                        {p.teams?.name}
-                                                    </span>
-                                                    {p.predicted_best_third && (
-                                                        <span
-                                                            className="star"
-                                                            title="Mejor tercero"
-                                                        >
-                                                            ⭐
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))}
+                                <>
+                                    {/* Resumen de puntos de fase de grupos */}
+                                    {hasResults && (
+                                        <div className="score-summary">
+                                            <span className="score-summary-icon">🎯</span>
+                                            <span className="score-summary-text">
+                                                Acertó{" "}
+                                                <strong>
+                                                    {groupSummary.hits} de{" "}
+                                                    {groupSummary.decided}
+                                                </strong>{" "}
+                                                posiciones ya disputadas
+                                            </span>
+                                            <span className="score-summary-pts">
+                                                +{groupSummary.points} pts
+                                            </span>
                                         </div>
-                                    ))}
-                                </div>
+                                    )}
+
+                                    <div className="groups">
+                                        {groups.map(([letter, teams]) => {
+                                            const groupHits = teams.filter((p) => {
+                                                const r = resultsById.get(p.teams?.id);
+                                                return (
+                                                    r &&
+                                                    r.final_position ===
+                                                        p.predicted_position
+                                                );
+                                            }).length;
+                                            return (
+                                                <div className="group-card" key={letter}>
+                                                    <h3>
+                                                        <span>Grupo {letter}</span>
+                                                        {hasResults && (
+                                                            <span className="group-hits">
+                                                                {groupHits} ✓
+                                                            </span>
+                                                        )}
+                                                    </h3>
+                                                    {teams.map((p) => {
+                                                        const real = resultsById.get(
+                                                            p.teams?.id
+                                                        );
+                                                        const hit =
+                                                            real &&
+                                                            real.final_position ===
+                                                                p.predicted_position;
+                                                        const miss = real && !hit;
+                                                        return (
+                                                            <div
+                                                                key={p.id}
+                                                                className={`team-row ${
+                                                                    p.predicted_position <=
+                                                                    2
+                                                                        ? "qualifies"
+                                                                        : ""
+                                                                } ${
+                                                                    hit ? "hit" : ""
+                                                                } ${miss ? "miss" : ""}`}
+                                                            >
+                                                                <span className="seed">
+                                                                    {p.predicted_position}
+                                                                </span>
+                                                                {flagFor(
+                                                                    p.teams?.name
+                                                                ) && (
+                                                                    <span
+                                                                        className="team-flag"
+                                                                        aria-hidden="true"
+                                                                    >
+                                                                        {flagFor(
+                                                                            p.teams?.name
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                                <span className="team-name">
+                                                                    {p.teams?.name}
+                                                                    {miss && (
+                                                                        <span className="team-real">
+                                                                            Real:{" "}
+                                                                            {
+                                                                                real.final_position
+                                                                            }
+                                                                            .º
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                {p.predicted_best_third && (
+                                                                    <span
+                                                                        className="star"
+                                                                        title="Mejor tercero"
+                                                                    >
+                                                                        ⭐
+                                                                    </span>
+                                                                )}
+                                                                {hit && (
+                                                                    <span
+                                                                        className="hit-badge"
+                                                                        title="Posición exacta"
+                                                                    >
+                                                                        ✓ +1
+                                                                    </span>
+                                                                )}
+                                                                {miss && (
+                                                                    <span
+                                                                        className="miss-badge"
+                                                                        aria-label="Falló"
+                                                                    >
+                                                                        ✕
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             ) : (
                                 <div className="state">
                                     Sin predicciones de fase de grupos.

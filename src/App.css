@@ -317,6 +317,47 @@
 }
 
 /* ===== Predicciones por grupo ===== */
+/* Resumen de aciertos (puntos de fase de grupos) */
+.score-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(45, 212, 167, 0.14), var(--surface) 75%);
+  border: 1px solid rgba(45, 212, 167, 0.35);
+  border-radius: var(--radius);
+}
+
+.score-summary-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.score-summary-text {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.score-summary-text strong {
+  color: var(--text-h);
+}
+
+.score-summary-pts {
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--green);
+  background: var(--surface);
+  border: 1px solid rgba(45, 212, 167, 0.4);
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .groups {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -331,6 +372,10 @@
 }
 
 .group-card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 14px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -340,11 +385,70 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+.group-hits {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: var(--green);
+  background: var(--green-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .team-row {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
+}
+
+/* Acierto / fallo de la posición predicha */
+.team-row.hit {
+  background: rgba(45, 212, 167, 0.08);
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.team-row.miss {
+  box-shadow: inset 3px 0 0 var(--border);
+}
+
+.team-row.miss .team-name {
+  color: var(--text-dim);
+}
+
+.team-real {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 1px;
+}
+
+.hit-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--green);
+  background: var(--green-soft);
+  border: 1px solid rgba(45, 212, 167, 0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.miss-badge {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-radius: 999px;
 }
 
 .team-row + .team-row {
