@@ -8,7 +8,16 @@ import { supabase } from "../lib/supabase";
 export async function getGroupResults() {
     const { data, error } = await supabase
         .from("group_results")
-        .select("team_id, final_position, qualified_as_best_third");
+        .select(`
+            team_id,
+            final_position,
+            qualified_as_best_third,
+            teams (
+                id,
+                name,
+                group_letter
+            )
+        `);
 
     if (error) throw error;
 

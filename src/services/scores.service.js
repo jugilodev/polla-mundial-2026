@@ -1,38 +1,76 @@
-import { supabase } from "../lib/supabase";
 import { getParticipants } from "./participants.service";
+import { getAllGroupPredictions } from "./predictions.service";
+import { getGroupResults } from "./results.service";
+import {
+    addGroupScore,
+    addKnockoutScore,
+    buildKnockoutResultMap,
+    createScoreBreakdown,
+    getBreakdownTotal,
+    knockoutResultKey,
+} from "../lib/scoring";
+import { getAllKnockoutPredictions, getKnockoutResults } from "./knockout.service";
 
 /**
  * Devuelve el ranking de TODOS los participantes.
  *
- * Los puntos viven en la vista `participant_scores`, que se calcula
- * comparando las predicciones con los resultados reales (`group_results`).
- * Mientras no haya resultados cargados, esa vista está vacía: en ese caso
- * igual listamos a todos los participantes con 0 puntos en lugar de mostrar
- * una pantalla vacía.
+ * El puntaje se calcula en el frontend para poder sumar:
+ * - Fase de grupos
+ * - Fase eliminatoria
+ * - Bono por cruce exacto aunque el orden de team1/team2 esté invertido
  */
 export async function getRanking() {
-    const [participants, scores] = await Promise.all([
+    const [
+        participants,
+        groupPredictions,
+        groupResults,
+        knockoutPredictions,
+        knockoutResults,
+    ] = await Promise.all([
         getParticipants(),
-        getScores(),
+        getAllGroupPredictions(),
+        getGroupResults(),
+        getAllKnockoutPredictions(),
+        getKnockoutResults(),
     ]);
 
-    const pointsById = new Map(scores.map((s) => [s.id, s.points ?? 0]));
+    const scoresById = new Map(
+        participants.map((p) => [p.id, createScoreBreakdown()])
+    );
+
+    const groupResultsByTeamId = new Map(
+        groupResults.map((result) => [result.team_id, result])
+    );
+    const knockoutResultsByKey = buildKnockoutResultMap(knockoutResults);
+
+    for (const prediction of groupPredictions) {
+        const result = groupResultsByTeamId.get(prediction.team_id);
+        const breakdown = scoresById.get(prediction.participant_id);
+        if (breakdown) addGroupScore(breakdown, prediction, result);
+    }
+
+    for (const prediction of knockoutPredictions) {
+        const result =
+            knockoutResultsByKey.get(
+                knockoutResultKey(
+                    prediction.stage,
+                    prediction.team1_id,
+                    prediction.team2_id
+                )
+            ) ?? null;
+        const breakdown = scoresById.get(prediction.participant_id);
+        if (breakdown) addKnockoutScore(breakdown, prediction, result);
+    }
 
     return participants
-        .map((p) => ({
-            id: p.id,
-            name: p.name,
-            points: pointsById.get(p.id) ?? 0,
-        }))
+        .map((p) => {
+            const breakdown = scoresById.get(p.id) ?? createScoreBreakdown();
+            return {
+                id: p.id,
+                name: p.name,
+                points: getBreakdownTotal(breakdown),
+                breakdown,
+            };
+        })
         .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
-}
-
-async function getScores() {
-    const { data, error } = await supabase
-        .from("participant_scores")
-        .select("*");
-
-    if (error) throw error;
-
-    return data;
 }

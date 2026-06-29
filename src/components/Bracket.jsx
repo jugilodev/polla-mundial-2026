@@ -1,5 +1,10 @@
 import { useMemo, useState } from "react";
 import { flagFor } from "../lib/flags";
+import {
+    KNOCKOUT_STAGE_POINTS,
+    knockoutResultKey,
+    scoreKnockoutPrediction,
+} from "../lib/scoring";
 
 const STAGES = [
     { key: "ROUND_OF_32", label: "Dieciseisavos", short: "16avos" },
@@ -31,11 +36,31 @@ function TeamLine({ team, won, decided }) {
     );
 }
 
-function MatchCard({ match }) {
+function MatchCard({ match, comparisonResult }) {
     const winnerId = match.winner?.id;
-    const decided = Boolean(winnerId);
+    const resultScore = comparisonResult
+        ? scoreKnockoutPrediction(match, comparisonResult)
+        : null;
+    const hasResult = Boolean(resultScore?.decided);
+    const decided = comparisonResult ? hasResult : Boolean(winnerId);
+    const exactHit = hasResult && Boolean(resultScore?.bonusHit);
+    const winnerHit = hasResult ? resultScore.winnerHit : Boolean(winnerId);
+    const rootState = hasResult
+        ? exactHit
+            ? "exact-hit"
+            : winnerHit
+              ? "winner-hit"
+              : "winner-miss"
+        : decided
+          ? "decided"
+          : "pending";
+
     return (
-        <div className={`bmatch ${decided ? "decided" : ""}`}>
+        <div
+            className={`bmatch ${rootState} ${exactHit ? "exact-hit" : ""} ${
+                winnerHit ? "winner-hit" : ""
+            } ${resultScore && !winnerHit ? "winner-miss" : ""}`}
+        >
             <TeamLine
                 team={match.team1}
                 won={match.team1?.id === winnerId}
@@ -47,11 +72,23 @@ function MatchCard({ match }) {
                 won={match.team2?.id === winnerId}
                 decided={decided}
             />
+            {hasResult && (
+                <div className="bmatch-meta">
+                    <span className={`match-pill ${winnerHit ? "success" : "muted"}`}>
+                        {winnerHit
+                            ? `Ganador +${KNOCKOUT_STAGE_POINTS[match.stage] ?? 0}`
+                            : "Ganador 0"}
+                    </span>
+                    {exactHit && (
+                        <span className="match-pill bonus">Cruce exacto +1</span>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
 
-export default function Bracket({ matches }) {
+export default function Bracket({ matches, comparisonResultsByKey = null }) {
     const [stageFilter, setStageFilter] = useState("ALL");
 
     const byStage = useMemo(() => {
@@ -131,8 +168,8 @@ export default function Bracket({ matches }) {
                             return null;
                         return (
                             <section className="round" key={stage.key}>
-                                <header className="round-label">
-                                    <span className="round-label-text">{stage.label}</span>
+                                    <header className="round-label">
+                                        <span className="round-label-text">{stage.label}</span>
                                     <span className="round-label-count">
                                         {stageMatches.length}
                                         {stageMatches.length === 1 ? " partido" : " partidos"}
@@ -140,7 +177,19 @@ export default function Bracket({ matches }) {
                                 </header>
                                 <div className="round-matches">
                                     {stageMatches.map((m) => (
-                                        <MatchCard key={m.id} match={m} />
+                                        <MatchCard
+                                            key={m.id}
+                                            match={m}
+                                            comparisonResult={
+                                                comparisonResultsByKey?.get(
+                                                    knockoutResultKey(
+                                                        m.stage,
+                                                        m.team1?.id,
+                                                        m.team2?.id
+                                                    )
+                                                ) ?? null
+                                            }
+                                        />
                                     ))}
                                 </div>
                             </section>
@@ -154,7 +203,18 @@ export default function Bracket({ matches }) {
                     <header className="round-label">
                         <span className="round-label-text">🥉 Tercer lugar</span>
                     </header>
-                    <MatchCard match={third} />
+                    <MatchCard
+                        match={third}
+                        comparisonResult={
+                            comparisonResultsByKey?.get(
+                                knockoutResultKey(
+                                    third.stage,
+                                    third.team1?.id,
+                                    third.team2?.id
+                                )
+                            ) ?? null
+                        }
+                    />
                 </section>
             )}
         </div>

@@ -4,7 +4,7 @@ const RULES = [
         icon: "🎯",
         pts: 1,
         title: "Posición exacta en fase de grupos",
-        desc: "Por cada selección que ubiques en su posición exacta del grupo.",
+        desc: "Por cada selección que ubiques en su posición exacta del grupo. El 3er puesto solo suma si también coincide el mejor tercero.",
     },
     {
         icon: "⚽",
@@ -74,7 +74,8 @@ export default function PointsInfo() {
                     <span>
                         <strong>Bono en todos los brackets:</strong> por cada cruce en el
                         que aciertes el enfrentamiento exacto, ganas <strong>+1 punto
-                        extra</strong>.
+                        extra</strong>. El orden de team1 y team2 no importa: si son los
+                        mismos equipos, el bono cuenta igual.
                     </span>
                 </div>
             </div>

@@ -17,3 +17,13 @@ export async function getPredictionsByParticipant(participantId) {
 
     return data;
 }
+
+export async function getAllGroupPredictions() {
+    const { data, error } = await supabase
+        .from("group_predictions")
+        .select("participant_id, team_id, predicted_position, predicted_best_third");
+
+    if (error) throw error;
+
+    return data;
+}

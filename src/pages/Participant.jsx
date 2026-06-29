@@ -2,10 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { getPredictionsByParticipant } from "../services/predictions.service";
 import { getParticipants } from "../services/participants.service";
-import { getKnockoutPredictions } from "../services/knockout.service";
+import {
+    getKnockoutPredictions,
+    getKnockoutResults,
+} from "../services/knockout.service";
 import { getGroupResults } from "../services/results.service";
 import Bracket from "../components/Bracket";
+import ScoreBreakdown from "../components/ScoreBreakdown";
 import { flagFor } from "../lib/flags";
+import {
+    buildKnockoutResultMap,
+    createScoreBreakdown,
+    addGroupScore,
+    addKnockoutScore,
+    getBreakdownTotal,
+    scoreGroupPrediction,
+    knockoutResultKey,
+} from "../lib/scoring";
 
 export default function Participant() {
     const { id } = useParams();
@@ -15,6 +28,7 @@ export default function Participant() {
     const [predictions, setPredictions] = useState([]);
     const [knockout, setKnockout] = useState([]);
     const [results, setResults] = useState([]);
+    const [knockoutResults, setKnockoutResults] = useState([]);
     const [status, setStatus] = useState("loading"); // loading | ready | error
     const [view, setView] = useState("groups"); // groups | bracket
 
@@ -47,13 +61,15 @@ export default function Participant() {
         (async () => {
             setStatus("loading");
             try {
-                const [groupData, knockoutData] = await Promise.all([
+                const [groupData, knockoutData, knockoutResultsData] = await Promise.all([
                     getPredictionsByParticipant(id),
                     getKnockoutPredictions(id),
+                    getKnockoutResults(),
                 ]);
                 if (active) {
                     setPredictions(groupData);
                     setKnockout(knockoutData);
+                    setKnockoutResults(knockoutResultsData);
                     setStatus("ready");
                 }
             } catch (err) {
@@ -99,18 +115,54 @@ export default function Participant() {
 
     // Resumen de aciertos de fase de grupos: por cada posición exacta, +1 punto.
     const groupSummary = useMemo(() => {
+        const breakdown = createScoreBreakdown();
         let hits = 0;
         let decided = 0; // predicciones cuyo equipo ya tiene resultado real
         for (const p of predictions) {
             const real = resultsById.get(p.teams?.id);
             if (!real) continue;
             decided += 1;
-            if (real.final_position === p.predicted_position) hits += 1;
+            const scored = addGroupScore(breakdown, p, real);
+            if (scored.hit) hits += 1;
         }
-        return { hits, decided, points: hits };
+        return { hits, decided, points: breakdown.groups, breakdown };
     }, [predictions, resultsById]);
 
+    const knockoutResultsByKey = useMemo(
+        () => buildKnockoutResultMap(knockoutResults),
+        [knockoutResults]
+    );
+
+    const knockoutSummary = useMemo(() => {
+        const breakdown = createScoreBreakdown();
+        let winnerHits = 0;
+        let exactHits = 0;
+        let decided = 0;
+
+        for (const p of knockout) {
+            const real =
+                knockoutResultsByKey.get(
+                    knockoutResultKey(p.stage, p.team1?.id, p.team2?.id)
+                ) ?? null;
+            const scored = addKnockoutScore(breakdown, p, real);
+            if (!scored.decided) continue;
+
+            decided += 1;
+            if (scored.winnerHit) winnerHits += 1;
+            if (scored.bonusHit) exactHits += 1;
+        }
+
+        return {
+            winnerHits,
+            exactHits,
+            decided,
+            points: getBreakdownTotal(breakdown),
+            breakdown,
+        };
+    }, [knockout, knockoutResultsByKey]);
+
     const hasResults = resultsById.size > 0;
+    const hasKnockoutResults = knockoutSummary.decided > 0;
 
     return (
         <div>
@@ -228,11 +280,7 @@ export default function Participant() {
                                         {groups.map(([letter, teams]) => {
                                             const groupHits = teams.filter((p) => {
                                                 const r = resultsById.get(p.teams?.id);
-                                                return (
-                                                    r &&
-                                                    r.final_position ===
-                                                        p.predicted_position
-                                                );
+                                                return scoreGroupPrediction(p, r).hit;
                                             }).length;
                                             return (
                                                 <div className="group-card" key={letter}>
@@ -249,9 +297,10 @@ export default function Participant() {
                                                             p.teams?.id
                                                         );
                                                         const hit =
-                                                            real &&
-                                                            real.final_position ===
-                                                                p.predicted_position;
+                                                            scoreGroupPrediction(
+                                                                p,
+                                                                real
+                                                            ).hit;
                                                         const miss = real && !hit;
                                                         return (
                                                             <div
@@ -332,7 +381,35 @@ export default function Participant() {
 
                         {view === "bracket" &&
                             (knockout.length > 0 ? (
-                                <Bracket matches={knockout} />
+                                <>
+                                    <ScoreBreakdown
+                                        breakdown={knockoutSummary.breakdown}
+                                    />
+                                    {hasKnockoutResults && (
+                                        <div className="score-summary">
+                                            <span className="score-summary-icon">⚽</span>
+                                            <span className="score-summary-text">
+                                                Acertó{" "}
+                                                <strong>
+                                                    {knockoutSummary.winnerHits} de{" "}
+                                                    {knockoutSummary.decided}
+                                                </strong>{" "}
+                                                ganadores y sumó{" "}
+                                                <strong>
+                                                    {knockoutSummary.exactHits} bonos
+                                                </strong>{" "}
+                                                por cruces exactos
+                                            </span>
+                                            <span className="score-summary-pts">
+                                                +{knockoutSummary.points} pts
+                                            </span>
+                                        </div>
+                                    )}
+                                    <Bracket
+                                        matches={knockout}
+                                        comparisonResultsByKey={knockoutResultsByKey}
+                                    />
+                                </>
                             ) : (
                                 <div className="state">
                                     Sin predicciones de fase eliminatoria.
